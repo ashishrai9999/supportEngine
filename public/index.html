@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> Welcome to Dice Support Engine</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1> Dice Support Engine </h1>
+            <p>Interface for testing Support Engine</p>
+        </header>
+
+        <div class="status-bar">
+            <div class="status-item">
+                <span class="status-label">Backend Status:</span>
+                <span id="backend-status" class="status-indicator offline">Online</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Session ID:</span>
+                <span id="session-id" class="session-display">None</span>
+                <button id="new-session-btn" class="btn-small">New Session</button>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <!-- Chat Interface -->
+            <div class="chat-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-comments"></i> Dice Ai</h2>
+                    <div class="agent-selector">
+                        <label for="agent-type">Agents :</label>
+                        <select id="agent-type">
+                            <option value="query_assistant">Query Assistant (Expense)</option>
+                            <option value="login_issuer">Login Issuer</option>
+                            <option value="analyser">Analyser</option>
+                            <option value="decision">Decision</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="chat-container">
+                    <div id="chat-messages" class="chat-messages"></div>
+                    <div class="chat-input-container">
+                        <input type="text" id="chat-input" placeholder="Type your message..." />
+                        <button id="send-btn" class="btn-primary">
+                            <i class="fas fa-paper-plane"></i> Send
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API Testing Panel -->
+            <div class="api-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-code"></i> Mcp Server</h2>
+                </div>
+
+                <div class="api-tabs">
+                    <button class="tab-btn active" data-tab="chat-session">Chat Session</button>
+                    <button class="tab-btn" data-tab="mcp">MCP Tools</button>
+                    <button class="tab-btn" data-tab="gmail">Gmail</button>
+                    <button class="tab-btn" data-tab="sse">SSE</button>
+                </div>
+
+                <!-- Chat Session Tab -->
+                <div id="chat-session" class="tab-content active">
+                    <div class="api-card">
+                        <h3>Create New Chat Session</h3>
+                        <div class="form-group">
+                            <label>Client ID:</label>
+                            <input type="text" id="client-id" value="test-client" />
+                        </div>
+                        <div class="form-group">
+                            <label>Employee ID:</label>
+                            <input type="text" id="employee-id" value="test-employee" />
+                        </div>
+                        <div class="form-group">
+                            <label>Module:</label>
+                            <select id="module-select">
+                                <option value="Travel">Travel</option>
+                                <option value="Expense">Expense</option>
+                                <option value="Login">Login</option>
+                            </select>
+                        </div>
+                        <button id="create-session-btn" class="btn-secondary">Create Session</button>
+                    </div>
+
+                    <div class="api-card">
+                        <h3>Get All Chat Sessions</h3>
+                        <div class="form-group">
+                            <label>Client ID (optional):</label>
+                            <input type="text" id="filter-client-id" placeholder="Leave empty for all" />
+                        </div>
+                        <div class="form-group">
+                            <label>Employee ID (optional):</label>
+                            <input type="text" id="filter-employee-id" placeholder="Leave empty for all" />
+                        </div>
+                        <button id="get-sessions-btn" class="btn-secondary">Get Sessions</button>
+                        <div id="sessions-result" class="result-display"></div>
+                    </div>
+                </div>
+
+                <!-- MCP Tools Tab -->
+                <div id="mcp" class="tab-content">
+                    <div class="api-card">
+                        <h3>MCP Message</h3>
+                        <div class="form-group">
+                            <label>Method:</label>
+                            <select id="mcp-method">
+                                <option value="get_tools">Get Tools</option>
+                                <option value="get_resolution">Get Single Expense</option>
+                                <option value="get_answer_from_KnowledgeBase">Get Expense detail</option>
+                                <option value="get_files">Get services</option>
+                                <option value="get_team_approvals">Get single voucher</option>
+                                <option value="get_todays_emails">Get get_todays_emails</option>
+                                <option value="feed_query">Get Transaction</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Query (for applicable methods):</label>
+                            <input type="text" id="mcp-query" placeholder="Enter query..." />
+                        </div>
+                        <div class="form-group">
+                            <label>Module (for applicable methods):</label>
+                            <input type="text" id="mcp-module" placeholder="Enter module..." />
+                        </div>
+                        <button id="send-mcp-btn" class="btn-secondary">Send MCP Message</button>
+                        <div id="mcp-result" class="result-display"></div>
+                    </div>
+                </div>
+
+                <!-- Gmail Tab -->
+                <div id="gmail" class="tab-content">
+                    <div class="api-card">
+                        <h3>Gmail Authentication</h3>
+                        <p>Authenticate with Gmail to access email functionality</p>
+                        <button id="gmail-auth-btn" class="btn-secondary">Authenticate Gmail</button>
+                        <div id="gmail-auth-result" class="result-display"></div>
+                    </div>
+                </div>
+
+                <!-- SSE Tab -->
+                <div id="sse" class="tab-content">
+                    <div class="api-card">
+                        <h3>Server-Sent Events</h3>
+                        <div class="form-group">
+                            <label>SSE Status:</label>
+                            <span id="sse-status" class="status-indicator offline">Disconnected</span>
+                        </div>
+                        <button id="connect-sse-btn" class="btn-secondary">Connect SSE</button>
+                        <button id="disconnect-sse-btn" class="btn-secondary" disabled>Disconnect SSE</button>
+                        <div id="sse-messages" class="result-display"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Response Log -->
+        <div class="log-section">
+            <div class="section-header">
+                <h2><i class="fas fa-list"></i> Logs </h2>
+                <button id="clear-log-btn" class="btn-small">Clear Log</button>
+            </div>
+            <div id="response-log" class="log-container"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html> 
