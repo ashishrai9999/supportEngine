@@ -4,7 +4,7 @@ let eventSource = null;
 let isStreaming = false;
 
 // Backend API configuration
-const BACKEND_URL = 'http://localhost:8080';
+const BACKEND_URL = 'https://idfc-mmt-stage.dice.tech/support';
 
 // DOM elements
 const elements = {
