@@ -4,7 +4,7 @@ let eventSource = null;
 let isStreaming = false;
 
 // Backend API configuration
-const BACKEND_URL = 'https://idfc-mmt-stage.dice.tech/support';
+const BACKEND_URL = '[https://idfc-mmt-stage.dice.tech/support]';
 
 // DOM elements
 const elements = {
@@ -104,7 +104,7 @@ function setupEventListeners() {
 // Backend status checking
 async function checkBackendStatus() {
     try {
-        const response = await fetch(`${BACKEND_URL}/health`, { 
+        const response = await fetch("https://idfc-mmt-stage.dice.tech/health", { 
             method: 'GET',
             mode: 'cors'
         });
