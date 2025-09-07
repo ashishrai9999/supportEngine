@@ -4,7 +4,7 @@ let eventSource = null;
 let isStreaming = false;
 
 // Backend API configuration
-const BACKEND_URL = '[https://idfc-mmt-stage.dice.tech/support]';
+const BACKEND_URL = 'https://idfc-mmt-stage.dice.tech/support';
 
 // DOM elements
 const elements = {
@@ -185,8 +185,8 @@ async function sendChatMessage() {
         isStreaming = true;
         elements.sendBtn.disabled = true;
         
-        // Create streaming message element
-        const streamingMessage = addMessageToChat('assistant', '', true);
+        // Show thinking indicator
+        addThinkingIndicator();
         
         const response = await fetch(`${BACKEND_URL}${endpoint}`, {
             method: 'POST',
@@ -195,6 +195,10 @@ async function sendChatMessage() {
             },
             body: JSON.stringify(payload)
         });
+        
+        // Remove thinking indicator and create streaming message element
+        removeThinkingIndicator();
+        const streamingMessage = addMessageToChat('assistant', '', true);
         
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -232,6 +236,8 @@ async function sendChatMessage() {
         log(`Chat response received: ${assistantResponse.substring(0, 100)}...`);
         
     } catch (error) {
+        // Remove thinking indicator in case of error
+        removeThinkingIndicator();
         log(`Chat error: ${error.message}`);
         addMessageToChat('assistant', `Error: ${error.message}`);
     } finally {
@@ -252,6 +258,45 @@ function addMessageToChat(role, content, isStreaming = false) {
     elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
     
     return messageDiv;
+}
+
+function addThinkingIndicator() {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'Thinking';
+    messageDiv.id = 'thinking-indicator';
+    
+    const thinkingContent = document.createElement('div');
+    thinkingContent.style.display = 'flex';
+    thinkingContent.style.alignItems = 'center';
+    thinkingContent.style.gap = '10px';
+    
+    const thinkingText = document.createElement('span');
+    thinkingText.textContent = 'Thinking';
+    
+    const thinkingDots = document.createElement('div');
+    thinkingDots.className = 'thinking-indicator';
+    
+    for (let i = 0; i < 3; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'thinking-dot';
+        thinkingDots.appendChild(dot);
+    }
+    
+    thinkingContent.appendChild(thinkingText);
+    thinkingContent.appendChild(thinkingDots);
+    messageDiv.appendChild(thinkingContent);
+    
+    elements.chatMessages.appendChild(messageDiv);
+    elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+    
+    return messageDiv;
+}
+
+function removeThinkingIndicator() {
+    const thinkingIndicator = document.getElementById('thinking-indicator');
+    if (thinkingIndicator) {
+        thinkingIndicator.remove();
+    }
 }
 
 // API Testing Functions
