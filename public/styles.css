@@ -369,6 +369,132 @@ header p {
     background: #1e7e34;
 }
 
+.btn-voice {
+    background: #28a745;
+    color: white;
+    padding: 12px;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.2rem;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s;
+}
+
+.btn-voice:hover {
+    background: #1e7e34;
+    transform: scale(1.1);
+}
+
+.btn-voice.recording {
+    background: #dc3545;
+    animation: pulse 1.5s infinite;
+}
+
+.btn-voice-stop {
+    background: #dc3545;
+    color: white;
+    padding: 12px;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.2rem;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s;
+}
+
+.btn-voice-stop:hover {
+    background: #c82333;
+    transform: scale(1.1);
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+    }
+    70% {
+        transform: scale(1.05);
+        box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+    }
+}
+
+.voice-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+.voice-status.recording {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.voice-status.processing {
+    background: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+
+/* Voice Message Styles */
+.message.voice-message {
+    background: #e8f5e8;
+    border: 1px solid #c3e6c3;
+    border-left: 4px solid #28a745;
+}
+
+.voice-response {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.voice-response i {
+    color: #28a745;
+    font-size: 1.1rem;
+}
+
+.voice-response span {
+    font-weight: 600;
+    color: #155724;
+    margin-bottom: 5px;
+}
+
+.voice-response audio {
+    width: 100%;
+    max-width: 300px;
+    height: 40px;
+    border-radius: 5px;
+    outline: none;
+}
+
+.voice-response audio::-webkit-media-controls-panel {
+    background-color: #f8f9fa;
+}
+
+.voice-response audio::-webkit-media-controls-play-button {
+    background-color: #28a745;
+    border-radius: 50%;
+}
+
 .btn-primary:disabled,
 .btn-secondary:disabled,
 .btn-small:disabled {

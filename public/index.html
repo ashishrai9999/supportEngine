@@ -38,6 +38,7 @@
                             <option value="login_issuer">My Copilot</option>
                             <option value="analyser">Expense Module Assistant</option>
                             <option value="decision">Login Assistant</option>
+                            <option value="voice_agent">Voice General Assistence</option>
                         </select>
                     </div>
                 </div>
@@ -46,9 +47,19 @@
                     <div id="chat-messages" class="chat-messages"></div>
                     <div class="chat-input-container">
                         <input type="text" id="chat-input" placeholder="Type your message..." />
+                        <button id="voice-record-btn" class="btn-voice" style="display: none;">
+                            <i class="fas fa-microphone"></i>
+                        </button>
+                        <button id="voice-stop-btn" class="btn-voice-stop" style="display: none;">
+                            <i class="fas fa-stop"></i>
+                        </button>
                         <button id="send-btn" class="btn-primary">
                             <i class="fas fa-paper-plane"></i> Send
                         </button>
+                    </div>
+                    <div id="voice-status" class="voice-status" style="display: none;">
+                        <i class="fas fa-microphone"></i>
+                        <span id="voice-status-text">Ready to record</span>
                     </div>
                 </div>
             </div>

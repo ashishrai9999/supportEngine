@@ -3,8 +3,14 @@ let currentSessionId = null;
 let eventSource = null;
 let isStreaming = false;
 
+// Voice recording variables
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
+let audioContext = null;
+
 // Backend API configuration
-const BACKEND_URL = 'https://idfc-mmt-stage.dice.tech/support';
+const BACKEND_URL = 'http://localhost:8080';
 
 // DOM elements
 const elements = {
@@ -47,7 +53,13 @@ const elements = {
     
     // Tab elements
     tabBtns: document.querySelectorAll('.tab-btn'),
-    tabContents: document.querySelectorAll('.tab-content')
+    tabContents: document.querySelectorAll('.tab-content'),
+    
+    // Voice elements
+    voiceRecordBtn: document.getElementById('voice-record-btn'),
+    voiceStopBtn: document.getElementById('voice-stop-btn'),
+    voiceStatus: document.getElementById('voice-status'),
+    voiceStatusText: document.getElementById('voice-status-text')
 };
 
 // Initialize application
@@ -61,6 +73,35 @@ document.addEventListener('DOMContentLoaded', function() {
 function initializeApp() {
     log('Frontend application initialized');
     generateNewSessionId();
+    checkAudioSupport();
+}
+
+// Check browser audio format support
+function checkAudioSupport() {
+    const audioFormats = [
+        'audio/ogg; codecs=opus',
+        'audio/webm; codecs=opus',
+        'audio/mp4; codecs=mp4a.40.2',
+        'audio/mpeg',
+        'audio/wav'
+    ];
+    
+    log('Checking audio format support:');
+    audioFormats.forEach(format => {
+        const supported = MediaRecorder.isTypeSupported ? MediaRecorder.isTypeSupported(format) : 'Unknown';
+        log(`  ${format}: ${supported}`);
+    });
+    
+    // Test HTML5 audio element support
+    const audio = document.createElement('audio');
+    const canPlayOgg = audio.canPlayType('audio/ogg; codecs="opus"');
+    const canPlayWebm = audio.canPlayType('audio/webm; codecs="opus"');
+    const canPlayMp4 = audio.canPlayType('audio/mp4; codecs="mp4a.40.2"');
+    
+    log(`HTML5 Audio support:`);
+    log(`  OGG/Opus: ${canPlayOgg}`);
+    log(`  WebM/Opus: ${canPlayWebm}`);
+    log(`  MP4/AAC: ${canPlayMp4}`);
 }
 
 // Setup all event listeners
@@ -99,6 +140,13 @@ function setupEventListeners() {
     
     // Method change handler for MCP
     elements.mcpMethod.addEventListener('change', updateMcpForm);
+    
+    // Voice functionality
+    elements.voiceRecordBtn.addEventListener('click', startVoiceRecording);
+    elements.voiceStopBtn.addEventListener('click', stopVoiceRecording);
+    
+    // Agent type change handler
+    elements.agentType.addEventListener('change', handleAgentTypeChange);
 }
 
 // Backend status checking
@@ -163,6 +211,9 @@ async function sendChatMessage() {
             break;
         case 'decision':
             endpoint = '/stream/decision';
+            break;
+        case 'voice_agent':
+            endpoint = '/mcp/voice';
             break;
         default:
             endpoint = '/stream/chat';
@@ -545,5 +596,368 @@ function clearLog() {
     elements.responseLog.textContent = '';
 }
 
+// Voice functionality
+function handleAgentTypeChange() {
+    const agentType = elements.agentType.value;
+    const isVoiceAgent = agentType === 'voice_agent';
+    
+    // Show/hide voice controls
+    elements.voiceRecordBtn.style.display = isVoiceAgent ? 'flex' : 'none';
+    elements.voiceStopBtn.style.display = 'none';
+    elements.voiceStatus.style.display = isVoiceAgent ? 'flex' : 'none';
+    
+    // Update placeholder text
+    elements.chatInput.placeholder = isVoiceAgent ? 'Click microphone to record or type your message...' : 'Type your message...';
+    
+    // Reset voice status
+    updateVoiceStatus('Ready to record', false);
+}
+
+async function startVoiceRecording() {
+    try {
+        // Request microphone access
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                sampleRate: 48000
+            } 
+        });
+        
+        // Create MediaRecorder with OGG/Opus codec
+        const options = {
+            mimeType: 'audio/ogg; codecs=opus'
+        };
+        
+        // Fallback to webm if OGG not supported
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+            options.mimeType = 'audio/webm; codecs=opus';
+        }
+        
+        mediaRecorder = new MediaRecorder(stream, options);
+        audioChunks = [];
+        
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                audioChunks.push(event.data);
+            }
+        };
+        
+        mediaRecorder.onstop = () => {
+            processAudioRecording();
+            // Stop all tracks to release microphone
+            stream.getTracks().forEach(track => track.stop());
+        };
+        
+        mediaRecorder.start();
+        isRecording = true;
+        
+        // Update UI
+        elements.voiceRecordBtn.style.display = 'none';
+        elements.voiceStopBtn.style.display = 'flex';
+        elements.voiceRecordBtn.classList.add('recording');
+        updateVoiceStatus('Recording... Click stop when done', true);
+        
+        log('Voice recording started');
+        
+    } catch (error) {
+        log(`Error starting voice recording: ${error.message}`);
+        updateVoiceStatus('Error: Could not access microphone', false);
+    }
+}
+
+function stopVoiceRecording() {
+    if (mediaRecorder && isRecording) {
+        mediaRecorder.stop();
+        isRecording = false;
+        
+        // Update UI
+        elements.voiceRecordBtn.style.display = 'flex';
+        elements.voiceStopBtn.style.display = 'none';
+        elements.voiceRecordBtn.classList.remove('recording');
+        updateVoiceStatus('Processing audio...', false);
+        
+        log('Voice recording stopped');
+    }
+}
+
+async function processAudioRecording() {
+    try {
+        // Create blob from audio chunks
+        const audioBlob = new Blob(audioChunks, { type: 'audio/ogg; codecs=opus' });
+        console.log("audioBlob"+audioBlob.text)       
+         console.log("audioChunks"+audioChunks.text)
+
+        // Convert to base64
+        const base64Audio = await blobToBase64(audioBlob);
+        
+        // Send to voice API
+        await sendVoiceMessage(base64Audio);
+        
+    } catch (error) {
+        log(`Error processing audio: ${error.message}`);
+        updateVoiceStatus('Error processing audio', false);
+    }
+}
+
+function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const base64 = reader.result.split(',')[1]; // Remove data:audio/ogg;base64, prefix
+            resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+}
+
+async function sendVoiceMessage(base64Audio) {
+    const agentType = elements.agentType.value;
+    
+    // Add user message to chat
+    addMessageToChat('user', '🎤 Voice message');
+    
+    // Prepare request payload for voice API
+    const payload = {
+        jsonrpc: "2.0",
+        params: {
+            base64Audio: base64Audio,
+            module: elements.moduleSelect.value,
+            sessionId: currentSessionId
+        }
+    };
+    
+    log(`Sending voice message to /mcp/voice: ${JSON.stringify({...payload, params: {...payload.params, base64Audio: '[AUDIO_DATA]'}}, null, 2)}`);
+    
+    try {
+        isStreaming = true;
+        elements.sendBtn.disabled = true;
+        elements.voiceRecordBtn.disabled = true;
+        
+        // Show thinking indicator
+        addThinkingIndicator();
+        
+        const response = await fetch(`${BACKEND_URL}/mcp/voice`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        // Remove thinking indicator and create voice response message element
+        removeThinkingIndicator();
+        const voiceMessage = addVoiceMessageToChat();
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let textResponse = '';
+        
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n');
+            
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    try {
+                        const data = JSON.parse(line.substring(6));
+                        if (data.token) {
+                            textResponse += data.token;
+                        }
+                    } catch (e) {
+                        // Ignore parsing errors for non-JSON data
+                    }
+                }
+            }
+        }
+        
+        // Convert text to speech and play
+        if (textResponse) {
+            await playTextAsSpeech(textResponse, voiceMessage);
+        }
+        
+        log(`Voice response received and played`);
+        
+        // Reset voice status
+        updateVoiceStatus('Ready to record', false);
+        
+    } catch (error) {
+        // Remove thinking indicator in case of error
+        removeThinkingIndicator();
+        log(`Voice error: ${error.message}`);
+        addMessageToChat('assistant', `Error: ${error.message}`);
+        updateVoiceStatus('Error: Could not process voice message', false);
+    } finally {
+        isStreaming = false;
+        elements.sendBtn.disabled = false;
+        elements.voiceRecordBtn.disabled = false;
+    }
+}
+
+function addVoiceMessageToChat() {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message assistant voice-message';
+    
+    const voiceContent = document.createElement('div');
+    voiceContent.className = 'voice-response';
+    
+    const voiceIcon = document.createElement('i');
+    voiceIcon.className = 'fas fa-volume-up';
+    voiceIcon.style.marginRight = '10px';
+    
+    const voiceText = document.createElement('span');
+    voiceText.textContent = '🔊 Voice response';
+    
+    const audioElement = document.createElement('audio');
+    audioElement.controls = true;
+    audioElement.style.width = '100%';
+    audioElement.style.marginTop = '10px';
+    
+    voiceContent.appendChild(voiceIcon);
+    voiceContent.appendChild(voiceText);
+    voiceContent.appendChild(audioElement);
+    messageDiv.appendChild(voiceContent);
+    
+    elements.chatMessages.appendChild(messageDiv);
+    elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+    
+    return { messageDiv, audioElement };
+}
+
+async function playTextAsSpeech(text, voiceMessage) {
+    try {
+        log(`Received text response: ${text.substring(0, 100)}...`);
+        
+        const { messageDiv } = voiceMessage;
+        const voiceText = messageDiv.querySelector('span');
+        
+        // Update UI to show text and TTS status
+        voiceText.textContent = '🔊 Converting to speech...';
+        
+        // Display the text in the message
+        const textDisplay = document.createElement('div');
+        textDisplay.className = 'voice-text-display';
+        textDisplay.textContent = text;
+        textDisplay.style.marginTop = '10px';
+        textDisplay.style.padding = '10px';
+        textDisplay.style.background = '#f8f9fa';
+        textDisplay.style.borderRadius = '5px';
+        textDisplay.style.border = '1px solid #dee2e6';
+        messageDiv.appendChild(textDisplay);
+        
+        // Try Web Speech API first
+        if ('speechSynthesis' in window) {
+            await speakWithWebSpeechAPI(text, voiceText);
+        } else {
+            // Fallback to alternative TTS
+            await speakWithAlternativeTTS(text, voiceText);
+        }
+        
+    } catch (error) {
+        log(`Error processing text-to-speech: ${error.message}`);
+        const voiceText = voiceMessage.messageDiv.querySelector('span');
+        voiceText.textContent = '🔊 Text-to-speech error';
+    }
+}
+
+// Text-to-Speech functions
+async function speakWithWebSpeechAPI(text, voiceText) {
+    return new Promise((resolve, reject) => {
+        try {
+            const utterance = new SpeechSynthesisUtterance(text);
+            
+            // Configure speech settings
+            utterance.rate = 0.9;
+            utterance.pitch = 1.0;
+            utterance.volume = 1.0;
+            
+            // Try to use a natural-sounding voice
+            const voices = speechSynthesis.getVoices();
+            const preferredVoice = voices.find(voice => 
+                voice.lang.startsWith('en') && 
+                (voice.name.includes('Google') || voice.name.includes('Microsoft') || voice.name.includes('Natural'))
+            );
+            
+            if (preferredVoice) {
+                utterance.voice = preferredVoice;
+                log(`Using voice: ${preferredVoice.name}`);
+            }
+            
+            // Event handlers
+            utterance.onstart = () => {
+                voiceText.textContent = '🔊 Speaking...';
+                log('Speech started');
+            };
+            
+            utterance.onend = () => {
+                voiceText.textContent = '🔊 Voice response (click to replay)';
+                log('Speech ended');
+                resolve();
+            };
+            
+            utterance.onerror = (event) => {
+                log(`Speech error: ${event.error}`);
+                voiceText.textContent = '🔊 Speech error - trying alternative';
+                reject(new Error(event.error));
+            };
+            
+            // Start speaking
+            speechSynthesis.speak(utterance);
+            
+            // Add replay functionality
+            const replayBtn = document.createElement('button');
+            replayBtn.textContent = '🔊 Replay';
+            replayBtn.className = 'btn-small';
+            replayBtn.style.marginTop = '10px';
+            replayBtn.onclick = () => {
+                speechSynthesis.cancel();
+                speechSynthesis.speak(utterance);
+            };
+            
+            const messageDiv = voiceText.closest('.message');
+            messageDiv.appendChild(replayBtn);
+            
+        } catch (error) {
+            log(`Web Speech API error: ${error.message}`);
+            reject(error);
+        }
+    });
+}
+
+async function speakWithAlternativeTTS(text, voiceText) {
+    try {
+        voiceText.textContent = '🔊 Using alternative TTS...';
+        
+        // For now, just display the text and let user read it
+        // In a real implementation, you could integrate with external TTS services
+        voiceText.textContent = '🔊 Text response (TTS not available)';
+        
+        log('Alternative TTS fallback - displaying text only');
+        
+    } catch (error) {
+        log(`Alternative TTS error: ${error.message}`);
+        voiceText.textContent = '🔊 TTS not available';
+    }
+}
+
+function updateVoiceStatus(text, isRecording) {
+    elements.voiceStatusText.textContent = text;
+    elements.voiceStatus.className = 'voice-status';
+    
+    if (isRecording) {
+        elements.voiceStatus.classList.add('recording');
+    } else if (text.includes('Processing') || text.includes('Error')) {
+        elements.voiceStatus.classList.add('processing');
+    }
+}
+
 // Periodic backend status check
-setInterval(checkBackendStatus, 30000); // Check every 30 seconds 
+setInterval(checkBackendStatus, 30000); // Check every 30 seconds
